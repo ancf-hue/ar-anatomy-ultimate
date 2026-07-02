@@ -1,0 +1,2059 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="AR-Анатомия">
+    <title>AR-Анатомия ULTIMATE</title>
+
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+    <link rel="apple-touch-icon" href="favicon.ico">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { 
+            overflow: hidden; 
+            background: #000; 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+        }
+
+        #bgVideo { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1; }
+
+        #topBar {
+            position: fixed; top: 0; left: 0; right: 0;
+            padding: 10px 12px;
+            display: flex; justify-content: space-between; align-items: center;
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.7), transparent);
+            z-index: 10; color: white; gap: 6px; flex-wrap: wrap;
+        }
+        .stat {
+            background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px);
+            padding: 6px 12px; border-radius: 16px;
+            font-weight: bold; font-size: 13px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex; align-items: center; gap: 4px;
+        }
+        .stat.score { color: #ffd93d; }
+        .stat.level { color: #6bcfff; }
+        .stat.streak { color: #ff6b9d; }
+        .stat.timer { color: #00ff88; }
+        .stat.timer.warning { color: #ff4444; animation: blink 0.5s infinite; }
+        
+        .stat .favicon-small {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+        
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+        #monsterTypeIndicator {
+            position: fixed; top: 55px; right: 12px;
+            padding: 6px 12px; border-radius: 14px;
+            font-weight: bold; font-size: 12px;
+            z-index: 10; color: white;
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            display: flex; align-items: center; gap: 6px;
+            transition: all 0.3s;
+        }
+        #monsterTypeIndicator .type-icon { font-size: 18px; }
+        #monsterTypeIndicator .type-mult {
+            background: rgba(255,255,255,0.2); padding: 2px 6px;
+            border-radius: 8px; font-size: 10px;
+        }
+        #monsterTypeIndicator.type-normal { border-color: #00ff88; }
+        #monsterTypeIndicator.type-evil { border-color: #ff4444; box-shadow: 0 0 15px rgba(255,68,68,0.4); }
+        #monsterTypeIndicator.type-ghost { border-color: #a78bfa; box-shadow: 0 0 15px rgba(167,139,250,0.4); }
+        #monsterTypeIndicator.type-fast { border-color: #ffd93d; box-shadow: 0 0 15px rgba(255,217,61,0.4); }
+
+        #questionPanel {
+            position: fixed; top: 8px; left: 50%; transform: translateX(-50%);
+            background: rgba(20, 20, 40, 0.9); backdrop-filter: blur(15px);
+            padding: 10px 18px; border-radius: 18px;
+            border: 2px solid #6bcfff; color: white; text-align: center;
+            max-width: 92%; z-index: 15;
+            box-shadow: 0 8px 32px rgba(107, 207, 255, 0.3);
+            transition: opacity 0.3s ease;
+        }
+        
+        #questionPanel .logo-question {
+            width: 40px;
+            height: 40px;
+            display: block;
+            margin: 0 auto 6px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(107,207,255,0.3);
+        }
+        
+        #questionText { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+        #questionHint { font-size: 11px; color: #ffd93d; font-style: italic; }
+
+        .spinner {
+            display: none;
+            width: 24px;
+            height: 24px;
+            margin: 8px auto;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top: 3px solid #6bcfff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        #questionPanel.processing .spinner {
+            display: block;
+        }
+        #questionPanel.processing {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #hintBox {
+            position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%);
+            background: rgba(255, 200, 50, 0.95); color: #222;
+            padding: 10px 18px; border-radius: 14px;
+            font-weight: bold; font-size: 14px; z-index: 10;
+            opacity: 0; transition: opacity 0.3s;
+            max-width: 85%; text-align: center;
+        }
+        #hintBox.show { opacity: 1; }
+
+        #bottomBar {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            padding: 14px; display: flex; justify-content: space-around; gap: 8px;
+            background: linear-gradient(0deg, rgba(0, 0, 0, 0.7), transparent);
+            z-index: 10;
+        }
+        
+        @keyframes vibrate {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            10% { transform: translate(-1px, -1px) scale(1.02); }
+            20% { transform: translate(1px, 1px) scale(1.02); }
+            30% { transform: translate(-1px, 1px) scale(1.02); }
+            40% { transform: translate(1px, -1px) scale(1.02); }
+            50% { transform: translate(-1px, -1px) scale(1.02); }
+            60% { transform: translate(1px, 1px) scale(1.02); }
+            70% { transform: translate(-1px, 1px) scale(1.02); }
+            80% { transform: translate(1px, -1px) scale(1.02); }
+            90% { transform: translate(-1px, -1px) scale(1.02); }
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 4px 15px rgba(0, 201, 167, 0.4), inset 0 1px 2px rgba(255,255,255,0.3); }
+            50% { box-shadow: 0 6px 25px rgba(0, 201, 167, 0.7), inset 0 1px 2px rgba(255,255,255,0.4); }
+        }
+        
+        .btn {
+            flex: 1; padding: 16px 12px; font-size: 16px; font-weight: 800;
+            border: none; border-radius: 16px; cursor: pointer; color: white;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.5);
+            letter-spacing: 0.5px;
+            min-height: 56px;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 50%;
+            background: linear-gradient(180deg, rgba(255,255,255,0.4), rgba(255,255,255,0));
+            border-radius: 16px 16px 0 0;
+            pointer-events: none;
+        }
+        
+        .btn:hover { animation: vibrate 0.3s infinite, pulse-glow 1s ease-in-out infinite; }
+        .btn:active { transform: translateY(2px) scale(0.98); animation: none; }
+        .btn:disabled { opacity: 0.4; }
+        
+        .btn-xray { 
+            background: linear-gradient(135deg, rgba(0, 201, 167, 0.8), rgba(0, 137, 111, 0.8));
+            border: 2px solid rgba(0, 255, 200, 0.6);
+        }
+        .btn-xray.active { 
+            background: linear-gradient(135deg, rgba(255, 107, 157, 0.8), rgba(196, 69, 105, 0.8));
+            border-color: rgba(255, 107, 157, 0.7);
+        }
+        .btn-next { 
+            background: linear-gradient(135deg, rgba(107, 207, 255, 0.8), rgba(58, 123, 213, 0.8));
+            border: 2px solid rgba(107, 207, 255, 0.6);
+        }
+        .btn-help { 
+            background: linear-gradient(135deg, rgba(255, 217, 61, 0.8), rgba(243, 156, 18, 0.8));
+            border: 2px solid rgba(255, 217, 61, 0.6);
+            color: #222;
+            text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+        }
+        .btn-sound { 
+            background: linear-gradient(135deg, rgba(167, 139, 250, 0.8), rgba(124, 58, 237, 0.8));
+            border: 2px solid rgba(167, 139, 250, 0.6);
+        }
+
+        .screen {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
+            z-index: 100; color: white; padding: 20px; text-align: center;
+            overflow-y: auto;
+            touch-action: manipulation;
+        }
+        .screen.hidden { display: none; }
+        
+        .logo-page {
+            width: 64px; height: 64px;
+            margin: 10px auto 5px; display: block;
+            border-radius: 16px;
+            box-shadow: 0 0 30px rgba(107,207,255,0.2);
+            background: rgba(255,255,255,0.05);
+            padding: 8px;
+            image-rendering: pixelated;
+        }
+        
+        .screen h1 {
+            font-size: 28px; margin: 5px 0 5px;
+            background: linear-gradient(135deg, #6bcfff, #ff6b9d);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .screen h2 { font-size: 15px; margin-bottom: 15px; opacity: 0.9; }
+        .screen p { font-size: 13px; max-width: 400px; margin-bottom: 12px; opacity: 0.85; line-height: 1.4; }
+
+        .mode-select { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; justify-content: center; }
+        .mode-btn {
+            padding: 14px 20px; border: 2px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.1); color: white;
+            border-radius: 16px; cursor: pointer; font-weight: 800; font-size: 16px;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            letter-spacing: 0.5px;
+            min-height: 52px;
+        }
+        .mode-btn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 50%;
+            background: linear-gradient(180deg, rgba(255,255,255,0.2), rgba(255,255,255,0));
+            border-radius: 16px 16px 0 0;
+            pointer-events: none;
+        }
+        .mode-btn:hover { animation: vibrate 0.3s infinite; }
+        .mode-btn.active { 
+            border-color: rgba(107, 207, 255, 0.6);
+            background: rgba(107, 207, 255, 0.2);
+        }
+        .mode-btn:active { transform: translateY(2px) scale(0.98); animation: none; }
+
+        .start-btn {
+            padding: 18px 48px; font-size: 20px; font-weight: 800;
+            background: linear-gradient(135deg, rgba(255, 107, 157, 0.8), rgba(196, 69, 105, 0.8));
+            color: white; border: 3px solid rgba(255, 107, 157, 0.7);
+            border-radius: 50px; cursor: pointer;
+            box-shadow: 0 8px 30px rgba(255, 107, 157, 0.5);
+            margin: 10px;
+            backdrop-filter: blur(10px);
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            letter-spacing: 0.5px;
+            min-height: 64px;
+        }
+        .start-btn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 50%;
+            background: linear-gradient(180deg, rgba(255,255,255,0.4), rgba(255,255,255,0));
+            border-radius: 50px 50px 0 0;
+            pointer-events: none;
+        }
+        .start-btn:hover { animation: vibrate 0.3s infinite; }
+        .start-btn:active { transform: translateY(3px) scale(0.98); animation: none; }
+        
+        .secondary-btn {
+            padding: 14px 28px; font-size: 16px; font-weight: 800;
+            background: rgba(255, 255, 255, 0.1); color: white;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 30px; cursor: pointer; margin: 8px;
+            backdrop-filter: blur(10px);
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            letter-spacing: 0.5px;
+            min-height: 56px;
+        }
+        .secondary-btn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 50%;
+            background: linear-gradient(180deg, rgba(255,255,255,0.15), rgba(255,255,255,0));
+            border-radius: 30px 30px 0 0;
+            pointer-events: none;
+        }
+        .secondary-btn:hover { animation: vibrate 0.3s infinite; }
+        .secondary-btn:active { transform: translateY(2px) scale(0.98); animation: none; }
+
+        .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; max-width: 360px; margin: 10px 0; }
+        .menu-card {
+            padding: 20px 12px; border-radius: 18px;
+            background: rgba(255, 255, 255, 0.1); border: 3px solid rgba(255, 255, 255, 0.2);
+            color: white; cursor: pointer; font-weight: 800; transition: all 0.2s ease; text-align: center;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            letter-spacing: 0.5px;
+            min-height: 90px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .menu-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 50%;
+            background: linear-gradient(180deg, rgba(255,255,255,0.2), rgba(255,255,255,0));
+            border-radius: 18px 18px 0 0;
+            pointer-events: none;
+        }
+        .menu-card:hover { animation: vibrate 0.3s infinite; }
+        .menu-card:active { transform: translateY(2px) scale(0.98); animation: none; }
+        .menu-card .icon { font-size: 36px; display: block; margin-bottom: 8px; }
+        .menu-card .title { font-size: 16px; }
+        .menu-card.wide { grid-column: span 2; }
+        
+        .menu-card.play { background: linear-gradient(135deg, rgba(255, 107, 157, 0.8), rgba(196, 69, 105, 0.8)); border-color: rgba(255, 107, 157, 0.7); }
+        .menu-card.builder { background: linear-gradient(135deg, rgba(0, 201, 167, 0.8), rgba(0, 137, 111, 0.8)); border-color: rgba(0, 201, 167, 0.7); }
+        .menu-card.records { background: linear-gradient(135deg, rgba(255, 217, 61, 0.8), rgba(243, 156, 18, 0.8)); border-color: rgba(255, 217, 61, 0.7); color: #222; text-shadow: 0 1px 2px rgba(255,255,255,0.8); }
+        .menu-card.achievements { background: linear-gradient(135deg, rgba(167, 139, 250, 0.8), rgba(124, 58, 237, 0.8)); border-color: rgba(167, 139, 250, 0.7); }
+        .menu-card.progress { background: linear-gradient(135deg, rgba(107, 207, 255, 0.8), rgba(58, 123, 213, 0.8)); border-color: rgba(107, 207, 255, 0.7); }
+        .menu-card.support { background: linear-gradient(135deg, rgba(244, 114, 182, 0.8), rgba(236, 72, 153, 0.8)); border-color: rgba(244, 114, 182, 0.7); }
+        .menu-card.install { background: linear-gradient(135deg, rgba(16, 185, 129, 0.8), rgba(5, 150, 105, 0.8)); border-color: rgba(16, 185, 129, 0.7); }
+
+        .records-list { width: 100%; max-width: 360px; margin: 10px 0; background: rgba(0, 0, 0, 0.3); border-radius: 14px; padding: 12px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        .record-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); font-size: 13px; }
+        .record-row:last-child { border-bottom: none; }
+        .record-rank { font-size: 18px; width: 30px; }
+        .record-score { font-weight: bold; color: #ffd93d; }
+        .record-info { font-size: 11px; opacity: 0.7; }
+        .no-records { opacity: 0.5; padding: 20px; font-style: italic; }
+
+        .achievements-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; max-width: 360px; margin: 10px 0; }
+        .achievement {
+            background: rgba(0, 0, 0, 0.4); border-radius: 12px; padding: 10px 6px;
+            text-align: center; border: 2px solid rgba(255, 255, 255, 0.1); transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
+        .achievement.unlocked { border-color: #ffd93d; background: linear-gradient(135deg, rgba(255, 217, 61, 0.2), rgba(255, 107, 157, 0.2)); box-shadow: 0 0 15px rgba(255, 217, 61, 0.3); }
+        .achievement .badge { font-size: 28px; display: block; margin-bottom: 4px; filter: grayscale(1) opacity(0.3); }
+        .achievement.unlocked .badge { filter: none; }
+        .achievement .name { font-size: 10px; font-weight: bold; }
+        .achievement .desc { font-size: 9px; opacity: 0.6; margin-top: 2px; }
+
+        .builder-panel { width: 100%; max-width: 400px; background: rgba(0, 0, 0, 0.3); border-radius: 16px; padding: 14px; margin: 10px 0; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        .builder-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        .builder-row:last-child { border-bottom: none; }
+        .builder-row .label { font-weight: bold; font-size: 14px; min-width: 70px; text-align: left; }
+        .builder-row select { flex: 1; padding: 8px; border-radius: 10px; background: rgba(255, 255, 255, 0.15); color: white; border: 1px solid rgba(255, 255, 255, 0.3); font-size: 13px; margin-left: 10px; backdrop-filter: blur(5px); }
+        .builder-row select option { background: #1a1a2e; color: white; }
+
+        .chart-container { width: 100%; max-width: 360px; background: rgba(0, 0, 0, 0.3); border-radius: 14px; padding: 12px; margin: 10px 0; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        #progressChart { width: 100%; height: 180px; background: rgba(0, 0, 0, 0.2); border-radius: 10px; }
+        .chart-stats { display: flex; justify-content: space-around; margin-top: 10px; font-size: 12px; }
+        .chart-stat { text-align: center; }
+        .chart-stat .value { font-size: 18px; font-weight: bold; color: #ffd93d; }
+        .chart-stat .label { opacity: 0.7; font-size: 11px; }
+
+        .result-stats { background: rgba(0, 0, 0, 0.4); border-radius: 16px; padding: 16px; margin: 10px 0; min-width: 260px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        .result-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+        .result-row .label { opacity: 0.8; }
+        .result-row .value { font-weight: bold; color: #ffd93d; }
+        .new-record { color: #00ff88; font-size: 16px; font-weight: bold; animation: pulse 1s infinite; }
+        @keyframes pulse { 50% { opacity: 0.6; } }
+
+        #achievementPopup {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-200px);
+            background: linear-gradient(135deg, rgba(255, 217, 61, 0.9), rgba(243, 156, 18, 0.9));
+            color: #222;
+            padding: 14px 24px; border-radius: 20px; font-weight: bold; z-index: 200;
+            box-shadow: 0 8px 30px rgba(255, 217, 61, 0.5);
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            text-align: center; max-width: 90%;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        #achievementPopup.show { transform: translateX(-50%) translateY(0); }
+        #achievementPopup .badge { font-size: 32px; display: block; }
+        #achievementPopup .title { font-size: 14px; margin-top: 4px; }
+
+        .support-card {
+            background: rgba(255,255,255,0.08); border-radius: 20px;
+            padding: 24px; max-width: 360px; width: 100%;
+            border: 1px solid rgba(255,255,255,0.15);
+            margin: 10px 0;
+            backdrop-filter: blur(10px);
+        }
+        .support-card .phone {
+            font-size: 28px; font-weight: bold;
+            color: #ffd93d; letter-spacing: 2px;
+            padding: 12px; background: rgba(255,255,255,0.05);
+            border-radius: 14px; margin: 10px 0;
+            font-family: monospace;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .support-card .phone .country { font-size: 16px; color: #6bcfff; }
+        .support-card .copy-btn {
+            padding: 16px 36px; font-size: 18px; font-weight: 800;
+            background: linear-gradient(135deg, rgba(0, 201, 167, 0.8), rgba(0, 137, 111, 0.8));
+            color: white; border: 3px solid rgba(0, 201, 167, 0.6);
+            border-radius: 16px; cursor: pointer;
+            transition: all 0.2s; margin: 6px;
+            backdrop-filter: blur(10px);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            position: relative;
+            overflow: hidden;
+            letter-spacing: 0.5px;
+            min-height: 60px;
+        }
+        .support-card .copy-btn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 50%;
+            background: linear-gradient(180deg, rgba(255,255,255,0.4), rgba(255,255,255,0));
+            border-radius: 16px 16px 0 0;
+            pointer-events: none;
+        }
+        .support-card .copy-btn:hover { animation: vibrate 0.3s infinite; }
+        .support-card .copy-btn:active { transform: translateY(2px) scale(0.98); animation: none; }
+        .support-card .copy-btn.copied { background: linear-gradient(135deg, rgba(255, 217, 61, 0.8), rgba(243, 156, 18, 0.8)); border-color: rgba(255, 217, 61, 0.6); color: #222; }
+        .support-card .support-text {
+            font-size: 13px; opacity: 0.85; line-height: 1.6;
+            margin: 10px 0; padding: 12px;
+            background: rgba(0,0,0,0.2); border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .support-card .catalog-link {
+            display: inline-block; padding: 16px 28px;
+            background: linear-gradient(135deg, rgba(107, 207, 255, 0.8), rgba(58, 123, 213, 0.8));
+            color: white; text-decoration: none; border-radius: 16px;
+            font-weight: 800; font-size: 16px; margin: 6px;
+            transition: all 0.2s;
+            border: 3px solid rgba(107, 207, 255, 0.6);
+            backdrop-filter: blur(10px);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            position: relative;
+            overflow: hidden;
+            letter-spacing: 0.5px;
+            min-height: 60px;
+        }
+        .support-card .catalog-link::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 50%;
+            background: linear-gradient(180deg, rgba(255,255,255,0.4), rgba(255,255,255,0));
+            border-radius: 16px 16px 0 0;
+            pointer-events: none;
+        }
+        .support-card .catalog-link:hover { animation: vibrate 0.3s infinite; }
+        .support-card .catalog-link:active { transform: translateY(2px) scale(0.98); animation: none; }
+        .support-card .heart { color: #ff6b9d; font-size: 18px; animation: pulse 1s infinite; display: inline-block; }
+
+        #soundLoading {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: #6bcfff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        #soundLoading.show { opacity: 1; }
+        
+        #resultFlash {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            font-weight: bold;
+            z-index: 20;
+            pointer-events: none;
+            opacity: 0;
+            transition: none;
+        }
+        #resultFlash.show {
+            opacity: 1;
+            animation: flashAnim 0.8s ease-out forwards;
+        }
+        @keyframes flashAnim {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+        }
+        
+        #soundStatus {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 5px;
+            transition: all 0.3s;
+        }
+        #soundStatus.loading { color: #6bcfff; }
+        #soundStatus.loaded { color: #00ff88; }
+        #soundStatus.error { color: #ff4444; }
+        
+        @media (max-width: 400px) {
+            .btn { min-height: 64px; font-size: 15px; }
+            .mode-btn { min-height: 56px; padding: 12px 16px; }
+            .stat { font-size: 12px; padding: 5px 10px; }
+            .menu-card { min-height: 100px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="menuScreen" class="screen">
+        <img src="favicon.ico" alt="Логотип" class="logo-page" id="logoMenu">
+        <h1>AR-Анатомия</h1>
+        <h2>ULTIMATE Edition</h2>
+
+        <div class="menu-grid">
+            <div class="menu-card play wide" id="playBtn">
+                <span class="icon">🎮</span>
+                <span class="title">ИГРАТЬ</span>
+            </div>
+            <div class="menu-card builder" id="builderBtn">
+                <span class="icon">🎨</span>
+                <span class="title">Конструктор</span>
+            </div>
+            <div class="menu-card records" id="recordsBtn">
+                <span class="icon">🏆</span>
+                <span class="title">Рекорды</span>
+            </div>
+            <div class="menu-card achievements" id="achievementsBtn">
+                <span class="icon">🏅</span>
+                <span class="title">Достижения</span>
+            </div>
+            <div class="menu-card progress" id="progressBtn">
+                <span class="icon">📊</span>
+                <span class="title">Прогресс</span>
+            </div>
+            <div class="menu-card support" id="supportBtn">
+                <span class="icon">🤝</span>
+                <span class="title">Поддержать</span>
+            </div>
+            <div class="menu-card install" id="installBtn" style="display:none;">
+                <span class="icon">📱</span>
+                <span class="title">Установить</span>
+            </div>
+        </div>
+
+        <div id="soundStatus" class="loading">🔊 Загрузка звуков...</div>
+        <p style="font-size:11px; opacity:0.5; margin-top:5px;">v5.5 • Без спиннера</p>
+    </div>
+
+    <div id="gameSettingsScreen" class="screen hidden">
+        <img src="favicon.ico" alt="Логотип" class="logo-page">
+        <h1>⚙️ Настройки игры</h1>
+
+        <div style="margin: 10px 0; font-weight: bold; color: #6bcfff;">🎮 Режим сложности:</div>
+        <div class="mode-select" id="difficultySelect">
+            <button class="mode-btn active" data-diff="normal">🎓 Обычный</button>
+            <button class="mode-btn" data-diff="expert">🧠 Эксперт</button>
+        </div>
+
+        <div style="margin: 10px 0; font-weight: bold; color: #ff6b9d;">⏱️ Режим времени:</div>
+        <div class="mode-select" id="timeSelect">
+            <button class="mode-btn active" data-time="60">60 секунд</button>
+            <button class="mode-btn" data-time="0">Без времени</button>
+        </div>
+
+        <div style="margin: 10px 0; font-weight: bold; color: #00ff88;">🎭 Все 4 типа монстров доступны сразу:</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; max-width:360px; width:100%; background:rgba(0,0,0,0.3); border-radius:14px; padding:10px; backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.1);">
+            <div style="display:flex; align-items:center; gap:6px; padding:6px 10px; border-radius:10px; background:rgba(255,255,255,0.05); font-size:11px;">
+                <span style="font-size:18px;">🟢</span>
+                <div><div style="font-weight:bold;font-size:12px;">Обычный</div><div style="opacity:0.7;font-size:10px;">×1.0 • 50%</div></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; padding:6px 10px; border-radius:10px; background:rgba(255,255,255,0.05); font-size:11px;">
+                <span style="font-size:18px;">🔴</span>
+                <div><div style="font-weight:bold;font-size:12px;">Злой</div><div style="opacity:0.7;font-size:10px;">×1.5 • 25%</div></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; padding:6px 10px; border-radius:10px; background:rgba(255,255,255,0.05); font-size:11px;">
+                <span style="font-size:18px;">👻</span>
+                <div><div style="font-weight:bold;font-size:12px;">Призрак</div><div style="opacity:0.7;font-size:10px;">×2.0 • 15%</div></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; padding:6px 10px; border-radius:10px; background:rgba(255,255,255,0.05); font-size:11px;">
+                <span style="font-size:18px;">⚡</span>
+                <div><div style="font-weight:bold;font-size:12px;">Быстрый</div><div style="opacity:0.7;font-size:10px;">×1.75 • 10%</div></div>
+            </div>
+        </div>
+
+        <button class="start-btn" id="startGameBtn">▶️ Начать!</button>
+        <button class="secondary-btn" id="backFromSettingsBtn">← Назад</button>
+    </div>
+
+    <div id="supportScreen" class="screen hidden">
+        <img src="favicon.ico" alt="Логотип" class="logo-page">
+        <h1>🤝 Поддержать проект</h1>
+        <h2 style="font-size:14px; color:#ffd93d;">❤️ Приложение бесплатное. Было и останется.</h2>
+
+        <div class="support-card">
+            <p style="font-size:14px; opacity:0.9;">
+                Если проект помог вам или вашим близким —<br>
+                можете поддержать разработку добровольным переводом.
+            </p>
+
+            <div class="phone">
+                <span class="country">📱</span> 8-920-227-56-76
+            </div>
+
+            <button class="copy-btn" id="copyPhoneBtn">📋 Копировать номер</button>
+            <div id="copyStatus" style="font-size:13px; margin:8px 0; color:#00ff88;"></div>
+
+            <div class="support-text">
+                ✅ Деньги придут мгновенно.<br>
+                Без комиссии. Безопасно.<br><br>
+                <span class="heart">❤️</span> Спасибо за поддержку!
+            </div>
+
+            <a href="https://ancf-hue.github.io/" target="_blank" class="catalog-link">
+                🌟 Каталог бесплатных офлайн-приложений<br>
+                <span style="font-size:12px; opacity:0.8;">Anti-AI Shield</span>
+            </a>
+        </div>
+
+        <button class="secondary-btn" id="backFromSupportBtn">← Назад</button>
+    </div>
+
+    <div id="recordsScreen" class="screen hidden">
+        <img src="favicon.ico" alt="Логотип" class="logo-page">
+        <h1>🏆 Таблица рекордов</h1>
+        <div class="records-list" id="recordsList"></div>
+        <button class="secondary-btn" id="clearRecordsBtn">🗑️ Очистить</button>
+        <button class="start-btn" id="backFromRecordsBtn">← Назад</button>
+    </div>
+
+    <div id="achievementsScreen" class="screen hidden">
+        <img src="favicon.ico" alt="Логотип" class="logo-page">
+        <h1>🏅 Достижения</h1>
+        <p id="achievementsCount" style="font-size:13px;"></p>
+        <div class="achievements-grid" id="achievementsGrid"></div>
+        <button class="start-btn" id="backFromAchievementsBtn">← Назад</button>
+    </div>
+
+    <div id="progressScreen" class="screen hidden">
+        <img src="favicon.ico" alt="Логотип" class="logo-page">
+        <h1>📊 Мой прогресс</h1>
+        <div class="chart-container">
+            <canvas id="progressChart"></canvas>
+            <div class="chart-stats">
+                <div class="chart-stat"><div class="value" id="totalGames">0</div><div class="label">Игр</div></div>
+                <div class="chart-stat"><div class="value" id="totalScore">0</div><div class="label">Всего очков</div></div>
+                <div class="chart-stat"><div class="value" id="bestScore">0</div><div class="label">Рекорд</div></div>
+                <div class="chart-stat"><div class="value" id="avgAccuracy">0%</div><div class="label">Точность</div></div>
+            </div>
+        </div>
+        <button class="start-btn" id="backFromProgressBtn">← Назад</button>
+    </div>
+
+    <div id="builderScreen" class="screen hidden">
+        <img src="favicon.ico" alt="Логотип" class="logo-page">
+        <h1>🎨 Конструктор монстров</h1>
+        <p>Собери своего монстра из фигур и экспортируй в .OBJ!</p>
+        <div class="builder-panel">
+            <div class="builder-row">
+                <span class="label">🟣 Тело:</span>
+                <select id="bodySelect"></select>
+            </div>
+            <div class="builder-row">
+                <span class="label">🟡 Голова:</span>
+                <select id="headSelect"></select>
+            </div>
+            <div class="builder-row">
+                <span class="label">🔵 Руки:</span>
+                <select id="armSelect"></select>
+            </div>
+            <div class="builder-row">
+                <span class="label">🟢 Ноги:</span>
+                <select id="legSelect"></select>
+            </div>
+            <div class="builder-row">
+                <span class="label">🎨 Цвет:</span>
+                <input type="color" id="colorPicker" value="#ff6b9d" style="width:60px; height:36px; border:none; border-radius:8px; background:none;">
+            </div>
+            <div class="builder-row">
+                <span class="label">🎭 Тип:</span>
+                <select id="typeSelect">
+                    <option value="normal">🟢 Обычный</option>
+                    <option value="evil">🔴 Злой</option>
+                    <option value="ghost">👻 Призрак</option>
+                    <option value="fast">⚡ Быстрый</option>
+                </select>
+            </div>
+        </div>
+        <button class="start-btn" id="previewBtn">👁️ Предпросмотр</button>
+        <button class="secondary-btn" id="exportBtn">📤 Экспорт в .OBJ</button>
+        <button class="secondary-btn" id="backFromBuilderBtn">← Назад</button>
+    </div>
+
+    <div id="resultScreen" class="screen hidden">
+        <img src="favicon.ico" alt="Логотип" class="logo-page">
+        <h1 id="resultTitle">🎉 Игра окончена!</h1>
+        <div class="result-stats" id="resultStats"></div>
+        <div id="newRecordBadge" class="new-record" style="display:none;">🏆 НОВЫЙ РЕКОРД!</div>
+        <button class="start-btn" id="playAgainBtn">🔄 Ещё раз</button>
+        <button class="secondary-btn" id="toMenuBtn">🏠 В меню</button>
+    </div>
+
+    <video id="bgVideo" autoplay playsinline muted></video>
+
+    <div id="topBar" style="display:none;">
+        <div class="stat score">⭐ <span id="score">0</span></div>
+        <div class="stat level">📚 Ур. <span id="level">1</span></div>
+        <div class="stat" style="background:transparent; border:none; padding:0; box-shadow:none;">
+            <img src="favicon.ico" alt="Лого" class="favicon-small">
+        </div>
+        <div class="stat streak">🔥 <span id="streak">0</span></div>
+        <div class="stat timer" id="timerStat" style="display:none;">⏱️ <span id="timer">60</span></div>
+    </div>
+
+    <div id="monsterTypeIndicator" style="display:none;">
+        <span class="type-icon"></span>
+        <span class="type-name">Обычный</span>
+        <span class="type-mult">×1.0</span>
+    </div>
+
+    <div id="questionPanel" style="display:none;">
+        <img src="favicon.ico" alt="Логотип" class="logo-question">
+        <div id="questionText">Загрузка...</div>
+        <div id="questionHint"></div>
+    </div>
+
+    <div id="hintBox"></div>
+
+    <div id="bottomBar" style="display:none;">
+        <button class="btn btn-xray" id="xrayBtn">🔬 Рентген</button>
+        <button class="btn btn-help" id="helpBtn">💡 Подсказка</button>
+        <button class="btn btn-sound" id="soundBtn">🔊</button>
+        <button class="btn btn-next" id="nextBtn">➡️</button>
+    </div>
+
+    <div id="resultFlash"></div>
+    <div id="achievementPopup"><span class="badge"></span><span class="title"></span></div>
+    <div id="soundLoading">🔊 Загрузка звука...</div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        const SOUND_FILES = {
+            q_body: 'q_body.mp3',
+            q_head: 'q_head.mp3',
+            q_arm: 'q_arm.mp3',
+            q_leg: 'q_leg.mp3',
+            correct: 'correct.mp3',
+            wrong: 'wrong.mp3',
+            new_record: 'new_record.mp3',
+            game_over: 'game_over.mp3',
+            play_again: 'play_again.mp3',
+            to_menu: 'to_menu.mp3'
+        };
+
+        const sounds = {};
+        let soundsLoaded = false;
+        let soundsLoading = false;
+        const loadedSounds = new Set();
+        
+        let soundQueue = [];
+        let isPlayingSound = false;
+        let currentPlayingAudio = null;
+        let currentSoundCallback = null;
+
+        function updateSoundStatus(status, text) {
+            const el = document.getElementById('soundStatus');
+            if (!el) return;
+            el.textContent = text;
+            el.className = status;
+        }
+
+        function showSoundLoading(show) {
+            const el = document.getElementById('soundLoading');
+            if (el) el.classList.toggle('show', show);
+        }
+
+        function checkAllLoaded() {
+            if (soundsLoaded) return;
+            if (loadedSounds.size === Object.keys(SOUND_FILES).length) {
+                soundsLoaded = true;
+                soundsLoading = false;
+                showSoundLoading(false);
+                updateSoundStatus('loaded', '✅ Звуки загружены!');
+            } else {
+                updateSoundStatus('loading', `🔊 Загрузка звуков... ${loadedSounds.size}/${Object.keys(SOUND_FILES).length}`);
+            }
+        }
+
+        function loadSounds() {
+            if (soundsLoading || soundsLoaded) return;
+            soundsLoading = true;
+            showSoundLoading(true);
+            updateSoundStatus('loading', '🔊 Загрузка звуков...');
+
+            Object.entries(SOUND_FILES).forEach(([key, src]) => {
+                const audio = new Audio(src);
+                audio.preload = 'auto';
+                audio.volume = 0.8;
+                
+                audio.addEventListener('loadeddata', () => {
+                    if (!loadedSounds.has(key)) {
+                        loadedSounds.add(key);
+                        sounds[key] = audio;
+                        checkAllLoaded();
+                    }
+                });
+
+                audio.addEventListener('error', () => {
+                    if (!loadedSounds.has(key)) {
+                        loadedSounds.add(key);
+                        checkAllLoaded();
+                    }
+                });
+
+                setTimeout(() => {
+                    if (!loadedSounds.has(key)) {
+                        loadedSounds.add(key);
+                        checkAllLoaded();
+                    }
+                }, 3000);
+            });
+        }
+
+        loadSounds();
+
+        function playSound(key, onComplete = null) {
+            if (!soundEnabled) {
+                if (onComplete) setTimeout(onComplete, 0);
+                return;
+            }
+            
+            if (!sounds[key]) {
+                if (!soundsLoading) {
+                    const src = SOUND_FILES[key];
+                    if (src) {
+                        const audio = new Audio(src);
+                        audio.preload = 'auto';
+                        audio.volume = 0.8;
+                        audio.addEventListener('loadeddata', () => {
+                            sounds[key] = audio;
+                            if (soundEnabled && gameStarted) {
+                                soundQueue.push({ key, onComplete });
+                                processQueue();
+                            } else if (onComplete) {
+                                setTimeout(onComplete, 0);
+                            }
+                        });
+                        audio.load();
+                    } else if (onComplete) {
+                        setTimeout(onComplete, 0);
+                    }
+                } else if (onComplete) {
+                    setTimeout(() => playSound(key, onComplete), 100);
+                }
+                return;
+            }
+
+            soundQueue.push({ key, onComplete });
+            processQueue();
+        }
+
+        function processQueue() {
+            if (isPlayingSound || soundQueue.length === 0) return;
+            
+            const item = soundQueue.shift();
+            const key = item.key;
+            const onComplete = item.onComplete;
+            const originalAudio = sounds[key];
+            
+            if (!originalAudio) {
+                if (onComplete) setTimeout(onComplete, 0);
+                processQueue();
+                return;
+            }
+
+            const audio = originalAudio.cloneNode();
+            audio.volume = 0.8;
+            currentPlayingAudio = audio;
+            currentSoundCallback = onComplete;
+
+            isPlayingSound = true;
+            
+            let callbackCalled = false;
+            
+            const callCallback = (reason = 'unknown') => {
+                if (callbackCalled) return;
+                callbackCalled = true;
+                
+                const cb = currentSoundCallback;
+                currentSoundCallback = null;
+                isPlayingSound = false;
+                currentPlayingAudio = null;
+                
+                if (cb) setTimeout(cb, 50);
+                processQueue();
+            };
+            
+            audio.addEventListener('ended', () => callCallback('ended'));
+            
+            let duration = audio.duration;
+            if (!duration || !isFinite(duration) || duration <= 0) {
+                duration = 2;
+            }
+            const timeoutMs = duration * 1000 + 500;
+            
+            setTimeout(() => callCallback('timeout'), timeoutMs);
+            
+            audio.play().catch(e => {
+                callCallback('error');
+            });
+        }
+
+        function stopAllSounds() {
+            soundQueue = [];
+            if (currentPlayingAudio) {
+                try {
+                    currentPlayingAudio.pause();
+                    currentPlayingAudio.currentTime = 0;
+                } catch(e) {}
+                currentPlayingAudio = null;
+            }
+            isPlayingSound = false;
+            currentSoundCallback = null;
+        }
+
+        const MONSTER_TYPES = {
+            normal: { key: 'normal', name: 'Обычный', icon: '🟢', multiplier: 1.0, color: 0x00ff88,
+                rotationSpeed: 0.008, floatSpeed: 1.2, floatAmp: 0.15, opacity: 1.0, shake: 0, spawnWeight: 50,
+                minLevel: 1 },
+            evil: { key: 'evil', name: 'Злой', icon: '🔴', multiplier: 1.5, color: 0xff4444,
+                rotationSpeed: 0.015, floatSpeed: 2.0, floatAmp: 0.25, opacity: 1.0, shake: 0.08, spawnWeight: 25,
+                minLevel: 1 },
+            ghost: { key: 'ghost', name: 'Призрак', icon: '👻', multiplier: 2.0, color: 0xa78bfa,
+                rotationSpeed: 0.005, floatSpeed: 0.8, floatAmp: 0.3, opacity: 0.4, shake: 0, spawnWeight: 15,
+                minLevel: 1 },
+            fast: { key: 'fast', name: 'Быстрый', icon: '⚡', multiplier: 1.75, color: 0xffd93d,
+                rotationSpeed: 0.04, floatSpeed: 3.5, floatAmp: 0.2, opacity: 1.0, shake: 0.03, spawnWeight: 10,
+                minLevel: 1 }
+        };
+
+        const FIGURES = {
+            sphere: { name: 'Сфера', level: 1, create: () => new THREE.SphereGeometry(0.5, 20, 20), hint: 'Круглая, как мяч' },
+            cone: { name: 'Конус', level: 1, create: () => new THREE.ConeGeometry(0.4, 0.7, 20), hint: 'Как морковка' },
+            cylinder: { name: 'Цилиндр', level: 1, create: () => new THREE.CylinderGeometry(0.3, 0.3, 0.8, 20), hint: 'Как банка' },
+            box: { name: 'Куб', level: 2, create: () => new THREE.BoxGeometry(0.7, 0.7, 0.7), hint: 'Как кубик Рубика' },
+            torus: { name: 'Тор', level: 2, create: () => new THREE.TorusGeometry(0.35, 0.12, 12, 24), hint: 'Как бублик' },
+            tetra: { name: 'Тетраэдр', level: 2, create: () => new THREE.TetrahedronGeometry(0.55), hint: 'Четырёхгранник' },
+            octa: { name: 'Октаэдр', level: 3, create: () => new THREE.OctahedronGeometry(0.5), hint: 'Восьмигранник' },
+            dodeca: { name: 'Додекаэдр', level: 3, create: () => new THREE.DodecahedronGeometry(0.5), hint: 'Двенадцатигранник' },
+            icosa: { name: 'Икосаэдр', level: 3, create: () => new THREE.IcosahedronGeometry(0.5), hint: 'Двадцатигранник' },
+            capsule: { name: 'Капсула', level: 4, create: () => new THREE.CapsuleGeometry(0.3, 0.5, 8, 16), hint: 'Как таблетка' },
+            ring: { name: 'Кольцо', level: 4, create: () => new THREE.RingGeometry(0.2, 0.5, 20), hint: 'Плоское кольцо' },
+            knot: { name: 'Тор. узел', level: 5, create: () => new THREE.TorusKnotGeometry(0.3, 0.1, 64, 8), hint: 'Запутанный бублик' },
+        };
+
+        const ACHIEVEMENTS = {
+            first_game: { badge: '🎮', name: 'Первые шаги', desc: 'Сыграть первую игру' },
+            score_50: { badge: '⭐', name: 'Новичок', desc: 'Набрать 50 очков' },
+            score_200: { badge: '🌟', name: 'Охотник', desc: 'Набрать 200 очков' },
+            score_500: { badge: '💫', name: 'Мастер', desc: 'Набрать 500 очков' },
+            streak_5: { badge: '🔥', name: 'На серии', desc: 'Серия из 5 правильных' },
+            streak_10: { badge: '💥', name: 'Комбо-мастер', desc: 'Серия из 10' },
+            level_3: { badge: '📚', name: 'Учёный', desc: 'Достичь 3 уровня' },
+            level_5: { badge: '🎓', name: 'Профессор', desc: 'Достичь 5 уровня' },
+            accuracy_90: { badge: '🎯', name: 'Снайпер', desc: 'Точность 90%+' },
+            games_10: { badge: '🎲', name: 'Завсегдатай', desc: 'Сыграть 10 игр' },
+            builder: { badge: '🎨', name: 'Скульптор', desc: 'Создать монстра' },
+            exporter: { badge: '📤', name: 'Экспортер', desc: 'Экспортировать .OBJ' },
+            catch_evil: { badge: '😈', name: 'Укротитель', desc: 'Поймать злого монстра' },
+            catch_ghost: { badge: '👻', name: 'Охотник за призраками', desc: 'Поймать призрака' },
+            catch_fast: { badge: '⚡', name: 'Молниеносный', desc: 'Поймать быстрого' },
+            catch_all_types: { badge: '🏆', name: 'Коллекционер', desc: 'Поймать все 4 типа' },
+        };
+
+        let score = 0, level = 1, streak = 0, maxStreak = 0;
+        let correctCount = 0, wrongCount = 0;
+        let currentMonster = null, currentQuestion = null, currentMonsterType = 'normal';
+        let xrayMode = false, gameStarted = false;
+        let difficulty = 'normal', timeLimit = 60, timeLeft = 60;
+        let timerInterval = null, soundEnabled = true;
+        let previewMonster = null, previewBuilt = false;
+        let caughtTypes = new Set();
+        let animationRunning = false;
+        let animationFrameId = null;
+
+        let isAnswerProcessing = false;
+        let processingSafetyTimeout = null;
+
+        const STORAGE = { records: 'ar_ultimate_records', achievements: 'ar_ultimate_achievements',
+            history: 'ar_ultimate_history' };
+
+        function loadData(key, def = []) {
+            try { return JSON.parse(localStorage.getItem(key)) || def; } catch { return def; }
+        }
+
+        function saveData(key, data) {
+            try {
+                localStorage.setItem(key, JSON.stringify(data));
+            } catch (e) {
+                showHint('⚠️ Не удалось сохранить данные!');
+            }
+        }
+
+        let audioCtx = null, bgMusicOsc = null, bgMusicLfo = null, bgMusicGain = null;
+
+        function initAudio() {
+            if (audioCtx) return;
+            try { audioCtx = new(window.AudioContext || window.webkitAudioContext)(); } catch {}
+        }
+
+        function playTone(freq, duration, type = 'sine', volume = 0.2) {
+            if (!soundEnabled || !audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {}
+        }
+
+        function playClickSound() { playTone(800, 0.05, 'square', 0.1); }
+
+        function playAchievementSound() {
+            [523, 659, 784, 1047, 1319].forEach((f, i) => setTimeout(() => playTone(f, 0.15, 'sine', 0.3), i * 80));
+        }
+
+        function startBgMusic() {
+            if (!soundEnabled || !audioCtx) return;
+            stopBgMusic();
+            bgMusicGain = audioCtx.createGain();
+            bgMusicGain.gain.value = 0.04;
+            bgMusicGain.connect(audioCtx.destination);
+            bgMusicOsc = audioCtx.createOscillator();
+            bgMusicOsc.type = 'sine';
+            bgMusicOsc.frequency.value = 110;
+            bgMusicOsc.connect(bgMusicGain);
+            bgMusicOsc.start();
+            bgMusicLfo = audioCtx.createOscillator();
+            const lfoGain = audioCtx.createGain();
+            bgMusicLfo.frequency.value = 0.3;
+            lfoGain.gain.value = 5;
+            bgMusicLfo.connect(lfoGain);
+            lfoGain.connect(bgMusicOsc.frequency);
+            bgMusicLfo.start();
+        }
+
+        function stopBgMusic() {
+            try { if (bgMusicOsc) { bgMusicOsc.stop(); bgMusicOsc = null; } } catch {}
+            try { if (bgMusicLfo) { bgMusicLfo.stop(); bgMusicLfo = null; } } catch {}
+        }
+
+        function saveRecord(record) {
+            const records = loadData(STORAGE.records);
+            records.push(record);
+            records.sort((a, b) => b.score - a.score);
+            saveData(STORAGE.records, records.slice(0, 5));
+        }
+
+        function isNewRecord(score) {
+            const records = loadData(STORAGE.records);
+            if (records.length < 5) return true;
+            return score > records[records.length - 1].score;
+        }
+
+        function renderRecords() {
+            const list = document.getElementById('recordsList');
+            const records = loadData(STORAGE.records);
+            if (records.length === 0) {
+                list.innerHTML = '<div class="no-records">Пока нет рекордов</div>';
+                return;
+            }
+            const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+            list.innerHTML = records.map((r, i) => `
+                    <div class="record-row">
+                        <div class="record-rank">${medals[i] || (i+1)}</div>
+                        <div>
+                            <div class="record-score">${r.score} очков</div>
+                            <div class="record-info">Ур. ${r.level} • ${r.difficulty === 'expert' ? '🧠' : '🎓'} • ${r.time === 0 ? '∞' : r.time + 'с'}</div>
+                        </div>
+                        <div style="font-size:11px; opacity:0.6;">${r.date || ''}</div>
+                    </div>
+                `).join('');
+        }
+
+        function unlockAchievement(id) {
+            const unlocked = loadData(STORAGE.achievements);
+            if (unlocked.includes(id)) return;
+            unlocked.push(id);
+            saveData(STORAGE.achievements, unlocked);
+            const a = ACHIEVEMENTS[id];
+            if (a) {
+                showAchievementPopup(a.badge, a.name);
+                playAchievementSound();
+            }
+        }
+
+        function showAchievementPopup(badge, title) {
+            const popup = document.getElementById('achievementPopup');
+            popup.querySelector('.badge').textContent = badge;
+            popup.querySelector('.title').textContent = title;
+            popup.classList.add('show');
+            setTimeout(() => popup.classList.remove('show'), 3000);
+        }
+
+        function checkAchievements() {
+            if (score >= 50) unlockAchievement('score_50');
+            if (score >= 200) unlockAchievement('score_200');
+            if (score >= 500) unlockAchievement('score_500');
+            if (maxStreak >= 5) unlockAchievement('streak_5');
+            if (maxStreak >= 10) unlockAchievement('streak_10');
+            if (level >= 3) unlockAchievement('level_3');
+            if (level >= 5) unlockAchievement('level_5');
+            const total = correctCount + wrongCount;
+            if (total > 0 && (correctCount / total) >= 0.9 && total >= 5) unlockAchievement('accuracy_90');
+            if (caughtTypes.has('evil')) unlockAchievement('catch_evil');
+            if (caughtTypes.has('ghost')) unlockAchievement('catch_ghost');
+            if (caughtTypes.has('fast')) unlockAchievement('catch_fast');
+            if (caughtTypes.has('normal') && caughtTypes.has('evil') && caughtTypes.has('ghost') && caughtTypes.has('fast')) {
+                unlockAchievement('catch_all_types');
+            }
+        }
+
+        function renderAchievements() {
+            const grid = document.getElementById('achievementsGrid');
+            const unlocked = loadData(STORAGE.achievements);
+            grid.innerHTML = Object.entries(ACHIEVEMENTS).map(([id, a]) => `
+                    <div class="achievement ${unlocked.includes(id) ? 'unlocked' : ''}">
+                        <span class="badge">${a.badge}</span>
+                        <div class="name">${a.name}</div>
+                        <div class="desc">${a.desc}</div>
+                    </div>
+                `).join('');
+            document.getElementById('achievementsCount').textContent =
+                `Открыто: ${unlocked.length} из ${Object.keys(ACHIEVEMENTS).length}`;
+        }
+
+        function saveGameHistory(record) {
+            const history = loadData(STORAGE.history);
+            history.push(record);
+            if (history.length > 20) history.shift();
+            saveData(STORAGE.history, history);
+        }
+
+        function renderProgressChart() {
+            const history = loadData(STORAGE.history);
+            const canvas = document.getElementById('progressChart');
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            const W = rect.width, H = rect.height;
+            ctx.clearRect(0, 0, W, H);
+
+            if (history.length === 0) {
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Сыграйте первую игру!', W / 2, H / 2);
+                document.getElementById('totalGames').textContent = 0;
+                document.getElementById('totalScore').textContent = 0;
+                document.getElementById('bestScore').textContent = 0;
+                document.getElementById('avgAccuracy').textContent = '0%';
+                return;
+            }
+
+            const maxScore = Math.max(...history.map(h => h.score), 10);
+            const padding = 30;
+            const chartW = W - padding * 2;
+            const chartH = H - padding * 2;
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = padding + (chartH / 4) * i;
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(W - padding, y);
+                ctx.stroke();
+            }
+
+            ctx.strokeStyle = '#6bcfff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            history.forEach((h, i) => {
+                const x = padding + (chartW / Math.max(1, history.length - 1)) * i;
+                const y = padding + chartH - (h.score / maxScore) * chartH;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            history.forEach((h, i) => {
+                const x = padding + (chartW / Math.max(1, history.length - 1)) * i;
+                const y = padding + chartH - (h.score / maxScore) * chartH;
+                ctx.fillStyle = '#ff6b9d';
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            const totalGames = history.length;
+            const totalScore = history.reduce((s, h) => s + h.score, 0);
+            const bestScore = Math.max(...history.map(h => h.score));
+            const avgAcc = history.length > 0 ?
+                Math.round(history.reduce((s, h) => {
+                    const t = (h.correct || 0) + (h.wrong || 0);
+                    return s + (t > 0 ? (h.correct / t) * 100 : 0);
+                }, 0) / history.length) : 0;
+
+            document.getElementById('totalGames').textContent = totalGames;
+            document.getElementById('totalScore').textContent = totalScore;
+            document.getElementById('bestScore').textContent = bestScore;
+            document.getElementById('avgAccuracy').textContent = avgAcc + '%';
+        }
+
+        let scene, camera, renderer;
+        try {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.z = 4;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, window.innerWidth < 768 ? 1.5 : 2));
+            renderer.domElement.style.position = 'fixed';
+            renderer.domElement.style.top = '0';
+            renderer.domElement.style.left = '0';
+            renderer.domElement.style.zIndex = '1';
+            document.body.appendChild(renderer.domElement);
+        } catch (e) {
+            document.body.innerHTML = '<div style="color:white;text-align:center;padding:20px;font-size:18px;">❌ Ваш браузер не поддерживает WebGL</div>';
+            throw new Error('WebGL not supported');
+        }
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        dirLight.position.set(3, 5, 4);
+        scene.add(dirLight);
+        const backLight = new THREE.DirectionalLight(0x6bcfff, 0.5);
+        backLight.position.set(-3, -2, -3);
+        scene.add(backLight);
+
+        const video = document.getElementById('bgVideo');
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(stream => { video.srcObject = stream; video.play(); })
+            .catch((err) => { 
+                document.body.style.background = 'linear-gradient(135deg, #1a1a2e, #16213e)';
+                showHint('📷 AR недоступен — играем на фоне');
+            });
+
+        function chooseMonsterType() {
+            const available = Object.values(MONSTER_TYPES).filter(t => t.minLevel <= level);
+            const totalWeight = available.reduce((sum, t) => sum + t.spawnWeight, 0);
+            let rand = Math.random() * totalWeight;
+            for (const t of available) {
+                rand -= t.spawnWeight;
+                if (rand <= 0) return t.key;
+            }
+            return 'normal';
+        }
+
+        function getAvailableFigures() {
+            return Object.entries(FIGURES).filter(([k, f]) => f.level <= level).map(([k, f]) => ({ key: k, ...f }));
+        }
+
+        function randomFigure() {
+            const available = getAvailableFigures();
+            return available[Math.floor(Math.random() * available.length)];
+        }
+
+        function createMaterial(color, typeKey = 'normal') {
+            const mat = new THREE.MeshStandardMaterial({
+                color, roughness: 0.4, metalness: 0.3,
+                emissive: color, emissiveIntensity: 0.15,
+                wireframe: xrayMode, side: THREE.DoubleSide
+            });
+            if (typeKey === 'ghost') {
+                mat.transparent = true;
+                mat.opacity = 0.45;
+                mat.emissiveIntensity = 0.4;
+            }
+            return mat;
+        }
+
+        function createMonster(bodyFig, headFig, armFig, legFig, color, typeKey = 'normal') {
+            if (typeof bodyFig === 'string') bodyFig = { key: bodyFig, ...FIGURES[bodyFig] };
+            if (typeof headFig === 'string') headFig = { key: headFig, ...FIGURES[headFig] };
+            if (typeof armFig === 'string') armFig = { key: armFig, ...FIGURES[armFig] };
+            if (typeof legFig === 'string') legFig = { key: legFig, ...FIGURES[legFig] };
+
+            bodyFig = bodyFig || randomFigure();
+            headFig = headFig || randomFigure();
+            armFig = armFig || randomFigure();
+            legFig = legFig || randomFigure();
+
+            const type = MONSTER_TYPES[typeKey];
+            const group = new THREE.Group();
+
+            let bodyColor, headColor, armColor, legColor;
+            if (color) {
+                bodyColor = color;
+                headColor = color.clone();
+                armColor = color.clone();
+                legColor = color.clone();
+            } else {
+                if (typeKey === 'evil') {
+                    bodyColor = new THREE.Color().setHSL(0.0, 0.8, 0.4);
+                    headColor = new THREE.Color().setHSL(0.02, 0.9, 0.35);
+                    armColor = new THREE.Color().setHSL(0.98, 0.85, 0.45);
+                    legColor = new THREE.Color().setHSL(0.99, 0.8, 0.4);
+                } else if (typeKey === 'ghost') {
+                    bodyColor = new THREE.Color().setHSL(0.75, 0.4, 0.7);
+                    headColor = new THREE.Color().setHSL(0.72, 0.5, 0.75);
+                    armColor = new THREE.Color().setHSL(0.78, 0.45, 0.65);
+                    legColor = new THREE.Color().setHSL(0.76, 0.42, 0.68);
+                } else if (typeKey === 'fast') {
+                    bodyColor = new THREE.Color().setHSL(0.12, 0.9, 0.55);
+                    headColor = new THREE.Color().setHSL(0.1, 0.95, 0.6);
+                    armColor = new THREE.Color().setHSL(0.14, 0.85, 0.5);
+                    legColor = new THREE.Color().setHSL(0.13, 0.88, 0.52);
+                } else {
+                    bodyColor = new THREE.Color().setHSL(Math.random(), 0.7, 0.55);
+                    headColor = new THREE.Color().setHSL(Math.random(), 0.8, 0.6);
+                    armColor = new THREE.Color().setHSL(Math.random(), 0.7, 0.5);
+                    legColor = new THREE.Color().setHSL(Math.random(), 0.7, 0.5);
+                }
+            }
+
+            const bodyMesh = new THREE.Mesh(bodyFig.create(), createMaterial(bodyColor, typeKey));
+            bodyMesh.userData = { partName: 'body', figureKey: bodyFig.key, figureName: bodyFig.name };
+            group.add(bodyMesh);
+
+            const headMesh = new THREE.Mesh(headFig.create(), createMaterial(headColor, typeKey));
+            headMesh.position.y = 0.85;
+            headMesh.scale.set(0.7, 0.7, 0.7);
+            headMesh.userData = { partName: 'head', figureKey: headFig.key, figureName: headFig.name };
+            group.add(headMesh);
+
+            const leftArm = new THREE.Mesh(armFig.create(), createMaterial(armColor, typeKey));
+            leftArm.position.set(-0.85, 0, 0);
+            leftArm.scale.set(0.5, 0.5, 0.5);
+            leftArm.userData = { partName: 'arm', figureKey: armFig.key, figureName: armFig.name };
+            group.add(leftArm);
+
+            const rightArm = new THREE.Mesh(armFig.create(), createMaterial(armColor, typeKey));
+            rightArm.position.set(0.85, 0, 0);
+            rightArm.scale.set(0.5, 0.5, 0.5);
+            rightArm.userData = { partName: 'arm', figureKey: armFig.key, figureName: armFig.name };
+            group.add(rightArm);
+
+            const leftLeg = new THREE.Mesh(legFig.create(), createMaterial(legColor, typeKey));
+            leftLeg.position.set(-0.4, -0.9, 0);
+            leftLeg.scale.set(0.5, 0.6, 0.5);
+            leftLeg.userData = { partName: 'leg', figureKey: legFig.key, figureName: legFig.name };
+            group.add(leftLeg);
+
+            const rightLeg = new THREE.Mesh(legFig.create(), createMaterial(legColor, typeKey));
+            rightLeg.position.set(0.4, -0.9, 0);
+            rightLeg.scale.set(0.5, 0.6, 0.5);
+            rightLeg.userData = { partName: 'leg', figureKey: legFig.key, figureName: legFig.name };
+            group.add(rightLeg);
+
+            let eyeColor = 0xffffff, pupilColor = 0x000000;
+            if (typeKey === 'evil') { eyeColor = 0xff0000; pupilColor = 0xffff00; }
+            else if (typeKey === 'ghost') { eyeColor = 0xffffff; pupilColor = 0xa78bfa; }
+            else if (typeKey === 'fast') { eyeColor = 0xffff00; pupilColor = 0x000000; }
+
+            const eyeMat = new THREE.MeshStandardMaterial({
+                color: eyeColor, wireframe: xrayMode,
+                emissive: eyeColor, emissiveIntensity: typeKey === 'evil' ? 0.8 : 0.2
+            });
+            const pupilMat = new THREE.MeshStandardMaterial({ color: pupilColor, wireframe: xrayMode });
+
+            for (let side of [-1, 1]) {
+                const eye = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), eyeMat);
+                eye.position.set(side * 0.2, 0.95, 0.35);
+                group.add(eye);
+                const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), pupilMat);
+                pupil.position.set(side * 0.22, 0.95, 0.45);
+                group.add(pupil);
+            }
+
+            if (typeKey === 'evil') {
+                const hornMat = new THREE.MeshStandardMaterial({
+                    color: 0x330000, wireframe: xrayMode,
+                    emissive: 0xff0000, emissiveIntensity: 0.3
+                });
+                for (let side of [-1, 1]) {
+                    const horn = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.35, 6), hornMat);
+                    horn.position.set(side * 0.25, 1.4, 0);
+                    horn.rotation.z = side * 0.5;
+                    group.add(horn);
+                }
+                for (let i = 0; i < 4; i++) {
+                    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.2, 5), hornMat);
+                    const angle = (i / 4) * Math.PI * 2;
+                    spike.position.set(Math.cos(angle) * 0.5, 0, Math.sin(angle) * 0.5);
+                    spike.lookAt(spike.position.clone().multiplyScalar(2));
+                    group.add(spike);
+                }
+            } else {
+                const hornMat = new THREE.MeshStandardMaterial({
+                    color: typeKey === 'ghost' ? 0xa78bfa : (typeKey === 'fast' ? 0xffd93d : 0xffaa00),
+                    wireframe: xrayMode
+                });
+                for (let side of [-1, 1]) {
+                    const horn = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.25, 8), hornMat);
+                    horn.position.set(side * 0.25, 1.35, 0);
+                    horn.rotation.z = side * 0.3;
+                    group.add(horn);
+                }
+            }
+
+            group.userData.parts = { body: bodyFig, head: headFig, arm: armFig, leg: legFig };
+            group.userData.monsterType = typeKey;
+            group.userData.typeData = type;
+            group.userData.spawnTime = Date.now();
+
+            return group;
+        }
+
+        function updateMonsterTypeIndicator(typeKey) {
+            const indicator = document.getElementById('monsterTypeIndicator');
+            const type = MONSTER_TYPES[typeKey];
+            indicator.className = `type-${typeKey}`;
+            indicator.querySelector('.type-icon').textContent = type.icon;
+            indicator.querySelector('.type-name').textContent = type.name;
+            indicator.querySelector('.type-mult').textContent = `×${type.multiplier}`;
+        }
+
+        function generateQuestion() {
+            if (!currentMonster) return;
+            const parts = currentMonster.userData.parts;
+            const partKeys = Object.keys(parts);
+            const partKey = partKeys[Math.floor(Math.random() * partKeys.length)];
+            const correctFigure = parts[partKey];
+            const partNames = { body: 'ТЕЛО', head: 'ГОЛОВА', arm: 'РУКА', leg: 'НОГА' };
+            const soundKeys = { body: 'q_body', head: 'q_head', arm: 'q_arm', leg: 'q_leg' };
+            
+            currentQuestion = {
+                partKey, partNameRus: partNames[partKey],
+                correctFigureKey: correctFigure.key,
+                correctFigureName: correctFigure.name,
+                hint: correctFigure.hint
+            };
+            
+            document.getElementById('questionText').innerHTML =
+                `Из какой фигуры состоит <span style="color:#ffd93d">${partNames[partKey]}</span>?`;
+            document.getElementById('questionHint').textContent =
+                difficulty === 'expert' ? '🧠 Режим эксперта' : '👆 Кликни по нужной части';
+            document.getElementById('helpBtn').disabled = (difficulty === 'expert');
+            
+            playSound(soundKeys[partKey]);
+        }
+
+        function spawnMonster() {
+            if (currentMonster) scene.remove(currentMonster);
+            currentMonsterType = chooseMonsterType();
+            currentMonster = createMonster(null, null, null, null, null, currentMonsterType);
+            scene.add(currentMonster);
+            updateMonsterTypeIndicator(currentMonsterType);
+            generateQuestion();
+        }
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        function handleClick(clientX, clientY) {
+            if (!gameStarted || !currentMonster) return;
+            if (isAnswerProcessing) return;
+            
+            mouse.x = (clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(currentMonster.children, false);
+            if (intersects.length > 0) {
+                const hit = intersects[0].object;
+                if (hit.userData && hit.userData.partName) checkAnswer(hit);
+            }
+        }
+
+        function resetProcessingState() {
+            clearTimeout(processingSafetyTimeout);
+            processingSafetyTimeout = null;
+            isAnswerProcessing = false;
+        }
+
+        function checkAnswer(hitMesh) {
+            if (isAnswerProcessing) return;
+            isAnswerProcessing = true;
+            
+            // Safety timeout — 8 секунд максимум
+            clearTimeout(processingSafetyTimeout);
+            processingSafetyTimeout = setTimeout(() => {
+                resetProcessingState();
+            }, 8000);
+
+            const flash = document.getElementById('resultFlash');
+            const typeMultiplier = MONSTER_TYPES[currentMonsterType].multiplier;
+
+            if (hitMesh.userData.partName === currentQuestion.partKey) {
+                const basePoints = 10 + streak * 2;
+                const points = Math.round(basePoints * typeMultiplier);
+                score += points;
+                streak++;
+                correctCount++;
+                if (streak > maxStreak) maxStreak = streak;
+                caughtTypes.add(currentMonsterType);
+                updateLevel();
+                flash.textContent = `+${points} ✓`;
+                flash.style.color = '#00ff88';
+                flash.classList.remove('show');
+                void flash.offsetWidth;
+                flash.classList.add('show');
+
+                const oldMat = hitMesh.material;
+                hitMesh.material = new THREE.MeshStandardMaterial({
+                    color: 0x00ff88, emissive: 0x00ff88,
+                    emissiveIntensity: 1, wireframe: xrayMode
+                });
+                setTimeout(() => { 
+                    hitMesh.material = oldMat;
+                    try { oldMat.dispose && oldMat.dispose(); } catch(e) {}
+                }, 600);
+
+                const typeInfo = MONSTER_TYPES[currentMonsterType];
+                showHint(`✅ Верно! ${typeInfo.icon} ${typeInfo.name} • ${currentQuestion.correctFigureName} • ×${typeMultiplier}`);
+                
+                playSound('correct', () => {
+                    resetProcessingState();
+                    setTimeout(spawnMonster, 200);
+                });
+                
+            } else {
+                score = Math.max(0, score - 3);
+                streak = 0;
+                wrongCount++;
+                flash.textContent = '✗';
+                flash.style.color = '#ff4444';
+                flash.classList.remove('show');
+                void flash.offsetWidth;
+                flash.classList.add('show');
+
+                const clickedPart = hitMesh.userData.partName;
+                const clickedFigure = currentMonster.userData.parts[clickedPart];
+                const partNames = { body: 'ТЕЛО', head: 'ГОЛОВА', arm: 'РУКА', leg: 'НОГА' };
+                showHint(`❌ Это ${partNames[clickedPart]} — ${clickedFigure.name}`);
+
+                const oldMat = hitMesh.material;
+                hitMesh.material = new THREE.MeshStandardMaterial({
+                    color: 0xff0000, emissive: 0xff0000,
+                    emissiveIntensity: 0.8, wireframe: xrayMode
+                });
+                setTimeout(() => { 
+                    hitMesh.material = oldMat;
+                    try { oldMat.dispose && oldMat.dispose(); } catch(e) {}
+                }, 400);
+                
+                playSound('wrong', () => {
+                    resetProcessingState();
+                });
+            }
+            updateUI();
+        }
+
+        function updateLevel() {
+            const newLevel = Math.min(5, Math.floor(score / 40) + 1);
+            if (newLevel > level) {
+                level = newLevel;
+                showHint(`🎉 Уровень ${level}! Новые фигуры!`);
+            }
+        }
+
+        function startTimer() {
+            if (timeLimit === 0) return;
+            timeLeft = timeLimit;
+            document.getElementById('timerStat').style.display = 'block';
+            document.getElementById('timer').textContent = timeLeft;
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').textContent = timeLeft;
+                const timerStat = document.getElementById('timerStat');
+                if (timeLeft <= 10) timerStat.classList.add('warning');
+                else timerStat.classList.remove('warning');
+                if (timeLeft <= 0) endGame();
+            }, 1000);
+        }
+
+        function stopTimer() { if (timerInterval) { clearInterval(timerInterval); timerInterval = null; } }
+
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('level').textContent = level;
+            document.getElementById('streak').textContent = streak;
+        }
+
+        let hintTimeout;
+
+        function showHint(text) {
+            const box = document.getElementById('hintBox');
+            box.textContent = text;
+            box.classList.add('show');
+            clearTimeout(hintTimeout);
+            hintTimeout = setTimeout(() => box.classList.remove('show'), 2500);
+        }
+
+        function toggleXray() {
+            xrayMode = !xrayMode;
+            const btn = document.getElementById('xrayBtn');
+            btn.classList.toggle('active', xrayMode);
+            btn.textContent = xrayMode ? '🎨 Цвет' : '🔬 Рентген';
+            const active = currentMonster || previewMonster;
+            if (active) {
+                active.traverse(child => {
+                    if (child.isMesh && child.material) child.material.wireframe = xrayMode;
+                });
+            }
+            playClickSound();
+        }
+
+        function exportToOBJ(monster) {
+            if (!monster) { showHint('⚠️ Нет монстра для экспорта!'); return; }
+            let obj = '# AR-Anatomy Monster Export\n# Created by AR-Анатомия ULTIMATE\n\n';
+            let vertexOffset = 0;
+            let meshIndex = 0;
+            monster.children.forEach((child) => {
+                if (!child.isMesh || !child.geometry) return;
+                meshIndex++;
+                const geo = child.geometry.clone();
+                child.updateMatrixWorld();
+                geo.applyMatrix4(child.matrixWorld);
+                obj += `o part_${meshIndex}\n`;
+                const positions = geo.attributes.position;
+                if (!positions) return;
+                for (let i = 0; i < positions.count; i++) {
+                    obj += `v ${positions.getX(i).toFixed(6)} ${positions.getY(i).toFixed(6)} ${positions.getZ(i).toFixed(6)}\n`;
+                }
+                const index = geo.index;
+                if (index) {
+                    for (let i = 0; i < index.count; i += 3) {
+                        obj += `f ${index.getX(i) + 1 + vertexOffset} ${index.getX(i + 1) + 1 + vertexOffset} ${index.getX(i + 2) + 1 + vertexOffset}\n`;
+                    }
+                } else {
+                    for (let i = 0; i < positions.count; i += 3) {
+                        obj += `f ${i + 1 + vertexOffset} ${i + 2 + vertexOffset} ${i + 3 + vertexOffset}\n`;
+                    }
+                }
+                vertexOffset += positions.count;
+                obj += '\n';
+            });
+            const blob = new Blob([obj], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `monster_${Date.now()}.obj`;
+            a.click();
+            URL.revokeObjectURL(url);
+            unlockAchievement('exporter');
+            showHint('📤 Модель экспортирована в .OBJ!');
+        }
+
+        function initBuilder() {
+            ['bodySelect', 'headSelect', 'armSelect', 'legSelect'].forEach(id => {
+                const select = document.getElementById(id);
+                select.innerHTML = Object.entries(FIGURES).map(([k, f]) =>
+                    `<option value="${k}">${f.name} (ур.${f.level})</option>`
+                ).join('');
+            });
+        }
+
+        function buildPreviewMonster() {
+            if (previewMonster) { scene.remove(previewMonster); previewMonster = null; }
+            const bodyKey = document.getElementById('bodySelect').value;
+            const headKey = document.getElementById('headSelect').value;
+            const armKey = document.getElementById('armSelect').value;
+            const legKey = document.getElementById('legSelect').value;
+            const typeKey = document.getElementById('typeSelect').value;
+            const colorHex = document.getElementById('colorPicker').value;
+            const color = new THREE.Color(colorHex);
+
+            previewMonster = createMonster(bodyKey, headKey, armKey, legKey, color, typeKey);
+            scene.add(previewMonster);
+            previewBuilt = true;
+            unlockAchievement('builder');
+            showHint(`🎨 Монстр создан! Тип: ${MONSTER_TYPES[typeKey].icon} ${MONSTER_TYPES[typeKey].name}`);
+        }
+
+        function showScreen(id) {
+            if (id !== 'builderScreen' && previewMonster) {
+                scene.remove(previewMonster);
+                previewMonster = null;
+                previewBuilt = false;
+            }
+            ['menuScreen', 'supportScreen', 'gameSettingsScreen', 'recordsScreen', 'achievementsScreen',
+                'progressScreen', 'builderScreen', 'resultScreen'
+            ].forEach(s => document.getElementById(s).classList.add('hidden'));
+            if (id) document.getElementById(id).classList.remove('hidden');
+        }
+
+        document.getElementById('copyPhoneBtn').addEventListener('click', async () => {
+            const phone = '8-920-227-56-76';
+            try {
+                if (navigator.clipboard) {
+                    await navigator.clipboard.writeText(phone);
+                } else {
+                    const textarea = document.createElement('textarea');
+                    textarea.value = phone;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                }
+                const btn = document.getElementById('copyPhoneBtn');
+                btn.textContent = '✅ Скопировано!';
+                btn.classList.add('copied');
+                document.getElementById('copyStatus').textContent = 'Номер скопирован!';
+                setTimeout(() => {
+                    btn.textContent = '📋 Копировать номер';
+                    btn.classList.remove('copied');
+                    document.getElementById('copyStatus').textContent = '';
+                }, 3000);
+            } catch (e) {
+                document.getElementById('copyStatus').textContent = '❌ Не удалось скопировать';
+            }
+        });
+
+        function startGame() {
+            initAudio();
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+
+            stopAllSounds();
+            resetProcessingState();
+
+            score = 0; level = 1; streak = 0; maxStreak = 0;
+            correctCount = 0; wrongCount = 0;
+            xrayMode = false; caughtTypes = new Set();
+            document.getElementById('xrayBtn').classList.remove('active');
+            document.getElementById('xrayBtn').textContent = '🔬 Рентген';
+
+            if (previewMonster) { scene.remove(previewMonster); previewMonster = null; previewBuilt = false; }
+
+            showScreen(null);
+            document.getElementById('topBar').style.display = 'flex';
+            document.getElementById('questionPanel').style.display = 'block';
+            document.getElementById('bottomBar').style.display = 'flex';
+            document.getElementById('monsterTypeIndicator').style.display = 'flex';
+            
+            document.body.style.touchAction = 'none';
+            
+            gameStarted = true;
+            updateUI();
+            spawnMonster();
+            startTimer();
+            startBgMusic();
+            
+            if (!animationRunning) {
+                animationRunning = true;
+                animate();
+            }
+        }
+
+        function endGame() {
+            gameStarted = false;
+            stopTimer();
+            stopBgMusic();
+            stopAllSounds();
+            resetProcessingState();
+            
+            playSound('game_over');
+
+            document.getElementById('topBar').style.display = 'none';
+            document.getElementById('questionPanel').style.display = 'none';
+            document.getElementById('bottomBar').style.display = 'none';
+            document.getElementById('monsterTypeIndicator').style.display = 'none';
+
+            document.body.style.touchAction = 'manipulation';
+
+            const history = loadData(STORAGE.history);
+            const gamesPlayed = history.length;
+
+            const record = {
+                score, level, difficulty, time: timeLimit,
+                correct: correctCount, wrong: wrongCount,
+                date: new Date().toLocaleDateString('ru-RU')
+            };
+            const wasRecord = isNewRecord(score);
+            saveRecord(record);
+            saveGameHistory(record);
+
+            checkAchievements();
+            if (gamesPlayed === 0) unlockAchievement('first_game');
+            if (gamesPlayed + 1 >= 10) unlockAchievement('games_10');
+
+            const accuracy = correctCount + wrongCount > 0 ?
+                Math.round((correctCount / (correctCount + wrongCount)) * 100) : 0;
+
+            const typesCaught = Array.from(caughtTypes).map(t => MONSTER_TYPES[t].icon).join(' ');
+
+            document.getElementById('resultTitle').textContent =
+                timeLimit === 0 ? '🎉 Отличная игра!' : '⏱️ Время вышло!';
+            document.getElementById('resultStats').innerHTML = `
+                    <div class="result-row"><span class="label">⭐ Очки:</span><span class="value">${score}</span></div>
+                    <div class="result-row"><span class="label">📚 Уровень:</span><span class="value">${level}</span></div>
+                    <div class="result-row"><span class="label">✅ Правильно:</span><span class="value">${correctCount}</span></div>
+                    <div class="result-row"><span class="label">❌ Ошибок:</span><span class="value">${wrongCount}</span></div>
+                    <div class="result-row"><span class="label">🎯 Точность:</span><span class="value">${accuracy}%</span></div>
+                    <div class="result-row"><span class="label">🔥 Макс. серия:</span><span class="value">${maxStreak}</span></div>
+                    <div class="result-row"><span class="label">🎭 Поймано типов:</span><span class="value">${typesCaught || '—'}</span></div>
+                `;
+            document.getElementById('newRecordBadge').style.display = wasRecord ? 'block' : 'none';
+            
+            if (wasRecord) {
+                setTimeout(() => playSound('new_record'), 300);
+            }
+            
+            showScreen('resultScreen');
+        }
+
+        renderer.domElement.addEventListener('click', e => handleClick(e.clientX, e.clientY));
+        renderer.domElement.addEventListener('touchstart', e => {
+            if (e.touches.length > 0) handleClick(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: true });
+
+        document.getElementById('playBtn').addEventListener('click', () => { playClickSound(); showScreen('gameSettingsScreen'); });
+        document.getElementById('builderBtn').addEventListener('click', () => { playClickSound(); initBuilder(); showScreen('builderScreen'); });
+        document.getElementById('recordsBtn').addEventListener('click', () => { playClickSound(); renderRecords(); showScreen('recordsScreen'); });
+        document.getElementById('achievementsBtn').addEventListener('click', () => { playClickSound(); renderAchievements(); showScreen('achievementsScreen'); });
+        document.getElementById('progressBtn').addEventListener('click', () => { playClickSound(); renderProgressChart(); showScreen('progressScreen'); });
+        document.getElementById('supportBtn').addEventListener('click', () => { playClickSound(); showScreen('supportScreen'); });
+        document.getElementById('installBtn').addEventListener('click', () => {
+            if (window.deferredPrompt) {
+                window.deferredPrompt.prompt();
+                window.deferredPrompt.userChoice.then(() => { window.deferredPrompt = null; updateInstallButton(); });
+            }
+        });
+
+        document.querySelectorAll('#difficultySelect .mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#difficultySelect .mode-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                difficulty = btn.dataset.diff;
+                playClickSound();
+            });
+        });
+        document.querySelectorAll('#timeSelect .mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#timeSelect .mode-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                timeLimit = parseInt(btn.dataset.time);
+                playClickSound();
+            });
+        });
+        document.getElementById('startGameBtn').addEventListener('click', startGame);
+        document.getElementById('backFromSettingsBtn').addEventListener('click', () => { playClickSound(); showScreen('menuScreen'); });
+        document.getElementById('backFromSupportBtn').addEventListener('click', () => { playClickSound(); showScreen('menuScreen'); });
+
+        document.getElementById('backFromRecordsBtn').addEventListener('click', () => { playClickSound(); showScreen('menuScreen'); });
+        document.getElementById('backFromAchievementsBtn').addEventListener('click', () => { playClickSound(); showScreen('menuScreen'); });
+        document.getElementById('backFromProgressBtn').addEventListener('click', () => { playClickSound(); showScreen('menuScreen'); });
+        document.getElementById('backFromBuilderBtn').addEventListener('click', () => {
+            playClickSound();
+            if (previewMonster) { scene.remove(previewMonster); previewMonster = null; previewBuilt = false; }
+            showScreen('menuScreen');
+        });
+        document.getElementById('clearRecordsBtn').addEventListener('click', () => {
+            if (confirm('Удалить все рекорды?')) { localStorage.removeItem(STORAGE.records); renderRecords(); }
+        });
+
+        document.getElementById('playAgainBtn').addEventListener('click', () => {
+            stopAllSounds();
+            playSound('play_again');
+            startGame();
+        });
+        document.getElementById('toMenuBtn').addEventListener('click', () => {
+            stopAllSounds();
+            playSound('to_menu');
+            showScreen('menuScreen');
+        });
+
+        document.getElementById('previewBtn').addEventListener('click', () => { playClickSound(); buildPreviewMonster(); });
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            if (!previewMonster) { showHint('⚠️ Сначала создайте монстра!'); return; }
+            playClickSound();
+            exportToOBJ(previewMonster);
+        });
+        ['bodySelect', 'headSelect', 'armSelect', 'legSelect', 'colorPicker', 'typeSelect'].forEach(id => {
+            document.getElementById(id).addEventListener('change', () => {
+                if (previewBuilt) buildPreviewMonster();
+            });
+        });
+
+        document.getElementById('xrayBtn').addEventListener('click', toggleXray);
+        document.getElementById('nextBtn').addEventListener('click', () => {
+            if (isAnswerProcessing) {
+                resetProcessingState();
+            }
+            playClickSound();
+            streak = 0;
+            spawnMonster();
+            showHint('➡️ Новый монстр!');
+        });
+        document.getElementById('helpBtn').addEventListener('click', () => {
+            if (currentQuestion && difficulty !== 'expert') {
+                playClickSound();
+                showHint(`💡 ${currentQuestion.hint}`);
+            }
+        });
+        document.getElementById('soundBtn').addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            document.getElementById('soundBtn').textContent = soundEnabled ? '🔊' : '🔇';
+            if (!soundEnabled) {
+                stopBgMusic();
+                stopAllSounds();
+                if (isAnswerProcessing) resetProcessingState();
+            } else if (gameStarted) startBgMusic();
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        function animate() {
+            if (!animationRunning) {
+                animationFrameId = null;
+                return;
+            }
+            animationFrameId = requestAnimationFrame(animate);
+            
+            const active = currentMonster || previewMonster;
+            if (active) {
+                const t = Date.now() * 0.001;
+                const type = active.userData.typeData || MONSTER_TYPES.normal;
+                const typeKey = active.userData.monsterType || 'normal';
+
+                active.rotation.y += type.rotationSpeed;
+                active.position.y = Math.sin(t * type.floatSpeed) * type.floatAmp;
+
+                if (type.shake > 0) {
+                    active.position.x = (Math.random() - 0.5) * type.shake;
+                    active.rotation.x = (Math.random() - 0.5) * type.shake;
+                    active.rotation.z = (Math.random() - 0.5) * type.shake;
+                }
+
+                active.children.forEach((child, i) => {
+                    if (child.userData.partName === 'arm') {
+                        child.rotation.z = Math.sin(t * 2 + i) * 0.2;
+                    }
+                    if (child.userData.partName === 'leg') {
+                        child.rotation.x = Math.sin(t * 2 + i) * 0.15;
+                    }
+                });
+
+                if (typeKey === 'ghost' && !xrayMode) {
+                    const flicker = 0.3 + Math.abs(Math.sin(t * 2)) * 0.5;
+                    active.traverse(child => {
+                        if (child.isMesh && child.material && child.material.transparent) {
+                            child.material.opacity = flicker;
+                        }
+                    });
+                    active.position.z = Math.sin(t * 1.5) * 0.3;
+                }
+
+                if (typeKey === 'evil') {
+                    const pulse = 1 + Math.sin(t * 4) * 0.05;
+                    active.scale.set(pulse, pulse, pulse);
+                }
+
+                if (typeKey === 'fast') {
+                    const stretch = 1 + Math.abs(Math.sin(t * 8)) * 0.1;
+                    active.scale.y = stretch;
+                }
+            }
+            renderer.render(scene, camera);
+        }
+
+        function stopAnimation() {
+            animationRunning = false;
+            if (animationFrameId !== null) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+        }
+
+        animationRunning = true;
+        animate();
+
+        function updateInstallButton() {
+            const btn = document.getElementById('installBtn');
+            btn.style.display = window.deferredPrompt ? 'block' : 'none';
+        }
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            window.deferredPrompt = e;
+            updateInstallButton();
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                stopAnimation();
+            } else {
+                if (!animationRunning) {
+                    animationRunning = true;
+                    animate();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
