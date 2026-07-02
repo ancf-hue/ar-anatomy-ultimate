@@ -1,0 +1,23 @@
+# robots.txt для AR-Анатомия ULTIMATE
+# https://ar-anatomy-ultimate.vercel.app/
+
+# Разрешить всем поисковым ботам
+User-agent: *
+Allow: /
+
+# Указать карту сайта
+Sitemap: https://ar-anatomy-ultimate.vercel.app/sitemap.xml
+
+# Запретить индексацию служебных файлов
+Disallow: /favicon.ico
+Disallow: /*.mp3$
+
+# Оптимизация для мобильных
+User-agent: Googlebot
+Allow: /*.js$
+Allow: /*.css$
+
+# Специальные правила для Yandex
+User-agent: Yandex
+Allow: /
+Clean-param: utm_source&utm_medium&utm_campaign
